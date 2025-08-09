@@ -195,7 +195,147 @@
 
       const totalAmount = entries.reduce((sum, entry) => sum + entry.totalValue, 0);
 
-      // Touch handlers for swipe
+const exportToPDF = () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  
+  // Set up constants
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  const col1 = margin;
+  const col2 = 85;
+  const col3 = 125;
+  const col4 = 165;
+  const lineHeight = 8;
+  
+  // Header with background
+  doc.setFillColor(250, 214, 165); // Light amber background
+  doc.rect(0, 0, pageWidth, 40, 'F');
+  
+  // Logo (simple euro symbol)
+  doc.setFontSize(24);
+  doc.setTextColor(217, 119, 6);
+  doc.text('€', 20, 25);
+  
+  // Title
+  doc.setFontSize(22);
+  doc.setTextColor(124, 77, 26);
+  doc.setFont('helvetica', 'bold');
+  doc.text('KbI-Rechner', pageWidth / 2, 20, { align: 'center' });
+  
+  // Subtitle
+  doc.setFontSize(16);
+  doc.setTextColor(156, 117, 79);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Zusammenfassung der gesammelten Werte', pageWidth / 2, 32, { align: 'center' });
+  
+  // Date line
+  const today = new Date();
+  const dateStr = `${today.getDate().toString().padStart(2, '0')}.${(today.getMonth()+1).toString().padStart(2, '0')}.${today.getFullYear()}`;
+  doc.setFontSize(12);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Erstellt am: ${dateStr}`, pageWidth - margin, 45, { align: 'right' });
+  
+  // Table header
+  let yPosition = 55;
+  doc.setFillColor(255, 240, 220);
+  doc.rect(margin, yPosition - 8, pageWidth - 2 * margin, 10, 'F');
+  
+  doc.setFontSize(12);
+  doc.setTextColor(124, 77, 26);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Position', col1, yPosition);
+  doc.text('Anzahl', col2, yPosition, { align: 'right' });
+  doc.text('Wert pro Stück', col3, yPosition, { align: 'right' });
+  doc.text('Gesamtwert', col4, yPosition, { align: 'right' });
+  
+  // Separator line
+  yPosition += 5;
+  doc.setDrawColor(230, 210, 180);
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  
+  // Table content
+  yPosition += 12;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(50, 50, 50);
+  
+  entries.forEach(entry => {
+    if (yPosition > 270) {
+      doc.addPage();
+      yPosition = 30;
+      
+      // Repeat header on new page
+      doc.setFontSize(12);
+      doc.setTextColor(124, 77, 26);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Position', col1, yPosition);
+      doc.text('Anzahl', col2, yPosition, { align: 'right' });
+      doc.text('Wert pro Stück', col3, yPosition, { align: 'right' });
+      doc.text('Gesamtwert', col4, yPosition, { align: 'right' });
+      
+      yPosition += 12;
+      doc.setFont('helvetica', 'normal');
+    }
+    
+    // Position name (with wrapping if needed)
+    const positionName = entry.coinLabel;
+    const positionX = col1;
+    const positionWidth = col2 - col1 - 5;
+    
+    doc.setFontSize(11);
+    doc.setTextColor(50, 50, 50);
+    
+    // Quantity (right aligned)
+    const quantity = entry.numCoins.toString();
+    doc.text(quantity, col2 - 5, yPosition, { align: 'right' });
+    
+    // Value per item (right aligned)
+    const valuePerItem = (entry.totalValue / entry.numCoins).toFixed(2);
+    doc.text(`${valuePerItem} €`, col3 - 5, yPosition, { align: 'right' });
+    
+    // Total value (right aligned)
+    doc.text(`${entry.totalValue.toFixed(2)} €`, col4 - 5, yPosition, { align: 'right' });
+    
+    // Draw position name with potential wrapping
+    const splitTitle = doc.splitTextToSize(positionName, positionWidth);
+    for (let i = 0; i < splitTitle.length; i++) {
+      doc.text(splitTitle[i], positionX, yPosition + (i * lineHeight * 0.8));
+    }
+    
+    // Add row height based on text wrapping
+    yPosition += Math.max(1, splitTitle.length) * lineHeight;
+  });
+  
+  // Total section
+  yPosition += 10;
+  doc.setDrawColor(230, 210, 180);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  
+  yPosition += 15;
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(124, 77, 26);
+  doc.text('Gesamtwert:', col3 - 5, yPosition, { align: 'right' });
+  
+  doc.setFontSize(18);
+  doc.setTextColor(217, 119, 6);
+  doc.text(`${totalAmount.toFixed(2)} €`, col4 - 5, yPosition, { align: 'right' });
+  
+  // Footer
+  yPosition = 285;
+  doc.setDrawColor(230, 210, 180);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  
+  yPosition += 7;
+  doc.setFontSize(10);
+  doc.setTextColor(150, 150, 150);
+  doc.text('KbI-Rechner • https://github.com/yourusername/kbi-rechner', pageWidth / 2, yPosition, { align: 'center' });
+  
+  // Save the PDF
+  doc.save(`KbI-Rechner_${dateStr}.pdf`);
+};
+// Touch handlers for swipe
       const handleTouchStart = (e) => {
         setTouchStart(e.touches[0].clientX);
         setTouchEnd(null);
@@ -220,104 +360,7 @@
         }
       };
 
-      const exportToPDF = () => {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        // Set up constants
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const margin = 15;
-        const col1 = margin;
-        const col2 = 80;
-        const col3 = 130;
-        const col4 = 160;
-        
-        // Header with background
-        doc.setFillColor(250, 214, 165); // Light amber background
-        doc.rect(0, 0, pageWidth, 40, 'F');
-        
-        // Logo (simple euro symbol)
-        doc.setFontSize(24);
-        doc.setTextColor(217, 119, 6);
-        doc.text('€', 20, 25);
-        
-        // Title
-        doc.setFontSize(22);
-        doc.setTextColor(124, 77, 26);
-        doc.setFont('helvetica', 'bold');
-        doc.text('KbI-Rechner', pageWidth / 2, 20, { align: 'center' });
-        
-        // Subtitle
-        doc.setFontSize(16);
-        doc.setTextColor(156, 117, 79);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Zusammenfassung der gesammelten Werte', pageWidth / 2, 32, { align: 'center' });
-        
-        // Date line
-        const today = new Date();
-        const dateStr = `${today.getDate().toString().padStart(2, '0')}.${(today.getMonth()+1).toString().padStart(2, '0')}.${today.getFullYear()}`;
-        doc.setFontSize(12);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Erstellt am: ${dateStr}`, pageWidth - margin, 45, { align: 'right' });
-        
-        // Table header
-        let yPosition = 55;
-        doc.setFillColor(255, 240, 220);
-        doc.rect(margin, yPosition - 8, pageWidth - 2 * margin, 10, 'F');
-        
-        doc.setFontSize(12);
-        doc.setTextColor(124, 77, 26);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Position', col1, yPosition);
-        doc.text('Anzahl', col2, yPosition);
-        doc.text('Wert pro Stück', col3, yPosition);
-        doc.text('Gesamtwert', col4, yPosition);
-        
-        // Separator line
-        yPosition += 5;
-        doc.setDrawColor(230, 210, 180);
-        doc.setLineWidth(0.5);
-        doc.line(margin, yPosition, pageWidth - margin, yPosition);
-        
-        // Table content
-        yPosition += 12;
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(50, 50, 50);
-        
-        entries.forEach(entry => {
-          if (yPosition > 270) {
-            doc.addPage();
-            yPosition = 20;
-            
-            // Repeat header on new page
-            doc.setFontSize(12);
-            doc.setTextColor(124, 77, 26);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Position', col1, yPosition);
-            doc.text('Anzahl', col2, yPosition);
-            doc.text('Wert pro Stück', col3, yPosition);
-            doc.text('Gesamtwert', col4, yPosition);
-            
-            yPosition += 12;
-            doc.setFont('helvetica', 'normal');
-          }
-          
-          // Position name
-          doc.setFontSize(11);
-          doc.text(entry.coinLabel, col1, yPosition);
-          
-          // Quantity
-          doc.text(entry.numCoins.toString(), col2, yPosition);
-          
-          // Value per item
-          const valuePerItem = (entry.totalValue / entry.numCoins).toFixed(2);
-          doc.text(`${valuePerItem} €`, col3, yPosition);
-          
-          // Total value
-          doc.text(`${entry.totalValue.toFixed(2)} €`, col4, yPosition);
-          
-          yPosition += 8;
-        });
+      
         
         // Total section
         yPosition += 15;
