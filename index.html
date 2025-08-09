@@ -1,10 +1,11 @@
+```html
 <!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KbI-Rechner</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23d97706'/><text x='50' y='65' font-size='40' text-anchor='middle' fill='white'>€</text></svg>">
+  <link rel="icon" href="image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23d97706'/><text x='50' y='65' font-size='40' text-anchor='middle' fill='white'>€</text></svg>">
   <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -45,7 +46,7 @@
       display: inline-block;
       width: 16px;
       height: 16px;
-      background: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23FFFFFF' d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-2 2l4 4h-4V4zm0 16H8v-2h2v-2h2v2h2v2zm0-6H8v-2h8v2z'/%3E%3C/svg%3E") no-repeat center;
+      background: url("image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23FFFFFF' d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-2 2l4 4h-4V4zm0 16H8v-2h2v-2h2v2h2v2zm0-6H8v-2h8v2z'/%3E%3C/svg%3E") no-repeat center;
     }
     .pdf-button span {
       display: inline-flex;
@@ -180,9 +181,12 @@
           };
           setEntries(prev => [...prev, newEntry]);
           
-          // Reset fields but keep 50€ as default
+          // Reset fields and move to next smaller banknote
           setNumBanknotes('');
-          // Keep 50€ as default, no change to selectedBanknoteId
+          const currentIndex = banknotes.findIndex(note => note.id === selectedBanknoteId);
+          if (currentIndex > 0) {
+            setSelectedBanknoteId(banknotes[currentIndex - 1].id);
+          }
         }
       };
 
@@ -221,37 +225,125 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
-        // Add title
-        doc.setFontSize(18);
-        doc.text('KbI-Rechner - Zusammenfassung', 105, 20, null, null, 'center');
+        // Set up constants
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 15;
+        const col1 = margin;
+        const col2 = 80;
+        const col3 = 130;
+        const col4 = 160;
         
-        // Add date
+        // Header with background
+        doc.setFillColor(250, 214, 165); // Light amber background
+        doc.rect(0, 0, pageWidth, 40, 'F');
+        
+        // Logo (simple euro symbol)
+        doc.setFontSize(24);
+        doc.setTextColor(217, 119, 6);
+        doc.text('€', 20, 25);
+        
+        // Title
+        doc.setFontSize(22);
+        doc.setTextColor(124, 77, 26);
+        doc.setFont('helvetica', 'bold');
+        doc.text('KbI-Rechner', pageWidth / 2, 20, { align: 'center' });
+        
+        // Subtitle
+        doc.setFontSize(16);
+        doc.setTextColor(156, 117, 79);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Zusammenfassung der gesammelten Werte', pageWidth / 2, 32, { align: 'center' });
+        
+        // Date line
         const today = new Date();
         const dateStr = `${today.getDate().toString().padStart(2, '0')}.${(today.getMonth()+1).toString().padStart(2, '0')}.${today.getFullYear()}`;
         doc.setFontSize(12);
-        doc.text(`Erstellt am: ${dateStr}`, 105, 30, null, null, 'center');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Erstellt am: ${dateStr}`, pageWidth - margin, 45, { align: 'right' });
         
-        // Add entries
-        let yPosition = 40;
-        doc.setFontSize(14);
-        doc.text('Einzelpositionen:', 10, yPosition);
-        yPosition += 10;
+        // Table header
+        let yPosition = 55;
+        doc.setFillColor(255, 240, 220);
+        doc.rect(margin, yPosition - 8, pageWidth - 2 * margin, 10, 'F');
         
         doc.setFontSize(12);
+        doc.setTextColor(124, 77, 26);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Position', col1, yPosition);
+        doc.text('Anzahl', col2, yPosition);
+        doc.text('Wert pro Stück', col3, yPosition);
+        doc.text('Gesamtwert', col4, yPosition);
+        
+        // Separator line
+        yPosition += 5;
+        doc.setDrawColor(230, 210, 180);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        
+        // Table content
+        yPosition += 12;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(50, 50, 50);
+        
         entries.forEach(entry => {
           if (yPosition > 270) {
             doc.addPage();
             yPosition = 20;
+            
+            // Repeat header on new page
+            doc.setFontSize(12);
+            doc.setTextColor(124, 77, 26);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Position', col1, yPosition);
+            doc.text('Anzahl', col2, yPosition);
+            doc.text('Wert pro Stück', col3, yPosition);
+            doc.text('Gesamtwert', col4, yPosition);
+            
+            yPosition += 12;
+            doc.setFont('helvetica', 'normal');
           }
           
-          doc.text(`${entry.coinLabel}: ${entry.numCoins} Stück = ${entry.totalValue.toFixed(2)} €`, 15, yPosition);
+          // Position name
+          doc.setFontSize(11);
+          doc.text(entry.coinLabel, col1, yPosition);
+          
+          // Quantity
+          doc.text(entry.numCoins.toString(), col2, yPosition);
+          
+          // Value per item
+          const valuePerItem = (entry.totalValue / entry.numCoins).toFixed(2);
+          doc.text(`${valuePerItem} €`, col3, yPosition);
+          
+          // Total value
+          doc.text(`${entry.totalValue.toFixed(2)} €`, col4, yPosition);
+          
           yPosition += 8;
         });
         
-        // Add total
+        // Total section
+        yPosition += 15;
+        doc.setDrawColor(230, 210, 180);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        
         yPosition += 10;
-        doc.setFontSize(14);
-        doc.text(`Gesamtwert: ${totalAmount.toFixed(2)} €`, 10, yPosition);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(124, 77, 26);
+        doc.text('Gesamtwert:', col3, yPosition);
+        
+        doc.setFontSize(18);
+        doc.setTextColor(217, 119, 6);
+        doc.text(`${totalAmount.toFixed(2)} €`, col4, yPosition);
+        
+        // Footer
+        yPosition = 285;
+        doc.setDrawColor(230, 210, 180);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        
+        yPosition += 7;
+        doc.setFontSize(10);
+        doc.setTextColor(150, 150, 150);
+        doc.text('KbI-Rechner • https://github.com/yourusername/kbi-rechner', pageWidth / 2, yPosition, { align: 'center' });
         
         // Save the PDF
         doc.save(`KbI-Rechner_${dateStr}.pdf`);
@@ -414,7 +506,7 @@
                     onClick={exportToPDF}
                     className="pdf-button px-4 py-2 rounded-lg text-white flex items-center hover:shadow-md"
                   >
-                    <span>Als PDF exportieren</span>
+                  <span>Als PDF exportieren</span>
                   </button>
                 </div>
                 <div className="space-y-3">
@@ -463,9 +555,9 @@
                 <li>Bei Scheinen: Wähle den Scheinwert und gib die Anzahl ein</li>
                 <li>Der Rechner berechnet automatisch den Wert</li>
                 <li>Mit "Ergebnis hinzufügen" kannst du mehrere Berechnungen sammeln</li>
-                <li>Nach dem Hinzufügen wird das Gewichtsfeld geleert und zur nächst kleineren Münze gewechselt</li>
+                <li>Nach dem Hinzufügen wird das Eingabefeld geleert und zur nächst kleineren Einheit gewechselt</li>
                 <li>Lösche Einträge mit dem Papierkorb-Icon</li>
-                <li>Exportiere die Liste als PDF</li>
+                <li>Exportiere die Liste als professionell gestaltete PDF</li>
               </ol>
               <div className="mt-4 p-3 bg-amber-50 rounded-lg">
                 <p className="text-sm text-amber-700">
