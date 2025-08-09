@@ -486,10 +486,10 @@
         yPosition += 7;
         doc.setFontSize(10);
         doc.setTextColor(150, 150, 150);
-        doc.text('KbI-Rechner • https://github.com/yourusername/kbi-rechner', pageWidth / 2, yPosition, { align: 'center' });
+        doc.text('KbI-Rechner • https://julius-scriba.github.io', pageWidth / 2, yPosition, { align: 'center' });
         
         // Save the PDF
-        doc.save(`KbI-Rechner_${dateStr}.pdf`);
+        doc.save(`KbI-Rechner_${dateStr}_${timeStr}.pdf`);
       };
 
       return (
