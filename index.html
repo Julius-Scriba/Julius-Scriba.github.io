@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Euro Münzen Rechner</title>
+  <title>KbI-Rechner</title>
   <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -19,6 +19,17 @@
     .trash-icon:hover {
       transform: scale(1.1);
       color: #d97706;
+    }
+    .tab-container {
+      transition: transform 0.3s ease;
+    }
+    .swipe-hint {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      color: rgba(0,0,0,0.2);
+      font-size: 12px;
+      pointer-events: none;
     }
   </style>
 </head>
@@ -40,11 +51,30 @@
         { id: '2e', label: '2 Euro', value: 2.00, weight: 8.50 },
       ];
 
+      const banknotes = [
+        { id: '5', label: '5 Euro', value: 5 },
+        { id: '10', label: '10 Euro', value: 10 },
+        { id: '20', label: '20 Euro', value: 20 },
+        { id: '50', label: '50 Euro', value: 50 },
+        { id: '100', label: '100 Euro', value: 100 },
+        { id: '200', label: '200 Euro', value: 200 },
+        { id: '500', label: '500 Euro', value: 500 },
+      ];
+
+      const [activeTab, setActiveTab] = useState('coins');
+      const [touchStart, setTouchStart] = useState(null);
+      const [touchEnd, setTouchEnd] = useState(null);
+      
       const [selectedCoinId, setSelectedCoinId] = useState('1e');
       const [totalWeight, setTotalWeight] = useState('');
-      const [tareWeight, setTareWeight] = useState('');
+      const [tareWeight, setTareWeight] = useState('34'); // Standard-Schalengewicht 34g
+      
+      const [selectedBanknoteId, setSelectedBanknoteId] = useState('20');
+      const [numBanknotes, setNumBanknotes] = useState('');
+      
       const [entries, setEntries] = useState([]);
 
+      // Coins calculation
       const total = parseFloat(totalWeight) || 0;
       const tare = parseFloat(tareWeight) || 0;
       const netWeight = total - tare;
@@ -61,7 +91,8 @@
         } else {
           const selectedCoin = coins.find(coin => coin.id === selectedCoinId);
           if (selectedCoin) {
-            numCoins = Math.floor(netWeight / selectedCoin.weight);
+            // Gerundete Anzahl der Münzen statt abgeschnitten
+            numCoins = Math.round(netWeight / selectedCoin.weight);
             totalValue = numCoins * selectedCoin.value;
             resultText = `${numCoins} Münzen = ${totalValue.toFixed(2)} €`;
           }
@@ -69,6 +100,28 @@
       } else {
         resultText = 'Gewicht eingeben';
         isValid = false;
+      }
+
+      // Banknotes calculation
+      let banknoteResultText = '';
+      let banknoteIsValid = true;
+      let banknoteTotalValue = 0;
+      let banknoteNum = parseInt(numBanknotes) || 0;
+
+      if (numBanknotes !== '') {
+        if (banknoteNum <= 0) {
+          banknoteResultText = 'Anzahl muss positiv sein';
+          banknoteIsValid = false;
+        } else {
+          const selectedNote = banknotes.find(note => note.id === selectedBanknoteId);
+          if (selectedNote) {
+            banknoteTotalValue = banknoteNum * selectedNote.value;
+            banknoteResultText = `${banknoteNum} Scheine = ${banknoteTotalValue.toFixed(2)} €`;
+          }
+        }
+      } else {
+        banknoteResultText = 'Anzahl eingeben';
+        banknoteIsValid = false;
       }
 
       const handleAddResult = () => {
@@ -86,91 +139,204 @@
         }
       };
 
+      const handleAddBanknote = () => {
+        if (!banknoteIsValid) return;
+        
+        const selectedNote = banknotes.find(note => note.id === selectedBanknoteId);
+        if (selectedNote) {
+          const newEntry = {
+            id: Date.now(),
+            coinLabel: selectedNote.label,
+            numCoins: banknoteNum,
+            totalValue: banknoteTotalValue
+          };
+          setEntries(prev => [...prev, newEntry]);
+        }
+      };
+
       const handleDelete = (id) => {
         setEntries(prev => prev.filter(entry => entry.id !== id));
       };
 
       const totalAmount = entries.reduce((sum, entry) => sum + entry.totalValue, 0);
 
+      // Touch handlers for swipe
+      const handleTouchStart = (e) => {
+        setTouchStart(e.touches[0].clientX);
+        setTouchEnd(null);
+      };
+
+      const handleTouchMove = (e) => {
+        setTouchEnd(e.touches[0].clientX);
+      };
+
+      const handleTouchEnd = () => {
+        if (!touchStart || !touchEnd) return;
+        
+        const distance = touchStart - touchEnd;
+        const isLeftSwipe = distance > 50;
+        const isRightSwipe = distance < -50;
+        
+        if (isLeftSwipe && activeTab === 'coins') {
+          setActiveTab('banknotes');
+        }
+        if (isRightSwipe && activeTab === 'banknotes') {
+          setActiveTab('coins');
+        }
+      };
+
       return (
-        <div className="min-h-screen bg-gradient-to-br from-amber-50 to-yellow-100 p-4 font-sans">
+        <div 
+          className="min-h-screen bg-gradient-to-br from-amber-50 to-yellow-100 p-4 font-sans relative"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <div className="max-w-md mx-auto">
             <header className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-amber-800 mb-2">Euro Münzen Rechner</h1>
-              <p className="text-amber-700">Bestimme den Wert deiner Münzen anhand des Gewichts</p>
+              <h1 className="text-3xl font-bold text-amber-800 mb-2">KbI-Rechner</h1>
+              <p className="text-amber-700">Bestimme den Wert deiner Münzen und Scheine</p>
             </header>
+            
+            {/* Swipe hint */}
+            <div className="swipe-hint">
+              {activeTab === 'coins' ? '→ Swipe für Scheine' : '← Swipe für Münzen'}
+            </div>
 
-            <div className="bg-white rounded-2xl shadow-xl p-5 space-y-5 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-amber-800 mb-1">
-                  Münzwert auswählen
-                </label>
-                <select
-                  value={selectedCoinId}
-                  onChange={(e) => setSelectedCoinId(e.target.value)}
-                  className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-amber-300 appearance-none bg-white"
-                >
-                  {coins.map((coin) => (
-                    <option key={coin.id} value={coin.id}>
-                      {coin.label} ({coin.weight}g)
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Tab Container */}
+            <div className="tab-container overflow-hidden">
+              <div className={`flex transition-transform duration-300 ${activeTab === 'coins' ? 'translate-x-0' : '-translate-x-full'}`}>
+                {/* Coins Tab */}
+                <div className="w-full min-w-full">
+                  <div className="bg-white rounded-2xl shadow-xl p-5 space-y-5 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-amber-800 mb-1">
+                        Münzwert auswählen
+                      </label>
+                      <select
+                        value={selectedCoinId}
+                        onChange={(e) => setSelectedCoinId(e.target.value)}
+                        className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-amber-300 appearance-none bg-white"
+                      >
+                        {coins.map((coin) => (
+                          <option key={coin.id} value={coin.id}>
+                            {coin.label} ({coin.weight}g)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-amber-800 mb-1">
-                    Gesamtgewicht (g)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={totalWeight}
-                    onChange={(e) => setTotalWeight(e.target.value)}
-                    placeholder="z.B. 150"
-                    className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-amber-300"
-                  />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-amber-800 mb-1">
+                          Gesamtgewicht (g)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={totalWeight}
+                          onChange={(e) => setTotalWeight(e.target.value)}
+                          placeholder="z.B. 150"
+                          className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-amber-300"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-amber-800 mb-1">
+                          Schalengewicht (g)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={tareWeight}
+                          onChange={(e) => setTareWeight(e.target.value)}
+                          placeholder="Standard: 34g"
+                          className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-amber-300"
+                        />
+                      </div>
+                    </div>
+
+                    <div 
+                      className={`p-4 rounded-xl transition-all duration-300 ${
+                        isValid ? 'bg-amber-50 text-amber-800' : 'bg-red-50 text-red-700'
+                      }`}
+                    >
+                      <p className="text-lg font-semibold text-center">{resultText}</p>
+                    </div>
+
+                    <button
+                      onClick={handleAddResult}
+                      disabled={!isValid}
+                      className={`w-full py-3 rounded-lg font-medium transition-all ${
+                        isValid 
+                          ? 'bg-amber-600 hover:bg-amber-700 text-white' 
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Ergebnis hinzufügen
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-amber-800 mb-1">
-                    Schalengewicht (g)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={tareWeight}
-                    onChange={(e) => setTareWeight(e.target.value)}
-                    placeholder="z.B. 50"
-                    className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-amber-300"
-                  />
+                
+                {/* Banknotes Tab */}
+                <div className="w-full min-w-full">
+                  <div className="bg-white rounded-2xl shadow-xl p-5 space-y-5 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-amber-800 mb-1">
+                        Scheinwert auswählen
+                      </label>
+                      <select
+                        value={selectedBanknoteId}
+                        onChange={(e) => setSelectedBanknoteId(e.target.value)}
+                        className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-amber-300 appearance-none bg-white"
+                      >
+                        {banknotes.map((note) => (
+                          <option key={note.id} value={note.id}>
+                            {note.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-amber-800 mb-1">
+                        Anzahl der Scheine
+                      </label>
+                      <input
+                        type="number"
+                        value={numBanknotes}
+                        onChange={(e) => setNumBanknotes(e.target.value)}
+                        placeholder="z.B. 5"
+                        className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-amber-300"
+                      />
+                    </div>
+
+                    <div 
+                      className={`p-4 rounded-xl transition-all duration-300 ${
+                        banknoteIsValid ? 'bg-amber-50 text-amber-800' : 'bg-red-50 text-red-700'
+                      }`}
+                    >
+                      <p className="text-lg font-semibold text-center">{banknoteResultText}</p>
+                    </div>
+
+                    <button
+                      onClick={handleAddBanknote}
+                      disabled={!banknoteIsValid}
+                      className={`w-full py-3 rounded-lg font-medium transition-all ${
+                        banknoteIsValid 
+                          ? 'bg-amber-600 hover:bg-amber-700 text-white' 
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Ergebnis hinzufügen
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              <div 
-                className={`p-4 rounded-xl transition-all duration-300 ${
-                  isValid ? 'bg-amber-50 text-amber-800' : 'bg-red-50 text-red-700'
-                }`}
-              >
-                <p className="text-lg font-semibold text-center">{resultText}</p>
-              </div>
-
-              <button
-                onClick={handleAddResult}
-                disabled={!isValid}
-                className={`w-full py-3 rounded-lg font-medium transition-all ${
-                  isValid 
-                    ? 'bg-amber-600 hover:bg-amber-700 text-white' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                Ergebnis hinzufügen
-              </button>
             </div>
 
             {entries.length > 0 && (
               <div className="bg-white rounded-2xl shadow-xl p-5 mb-6">
-                <h2 className="text-xl font-bold text-amber-800 mb-4">Gesammelte Münzen</h2>
+                <h2 className="text-xl font-bold text-amber-800 mb-4">Gesammelte Werte</h2>
                 <div className="space-y-3">
                   {entries.map(entry => (
                     <div 
@@ -179,7 +345,7 @@
                     >
                       <div>
                         <div className="font-medium text-amber-800">{entry.coinLabel}</div>
-                        <div className="text-sm text-amber-600">{entry.numCoins} Münzen</div>
+                        <div className="text-sm text-amber-600">{entry.numCoins} Stück</div>
                       </div>
                       <div className="flex items-center">
                         <div className="font-semibold text-lg text-amber-800 mr-2">
@@ -212,16 +378,16 @@
             <div className="bg-white rounded-2xl shadow-xl p-5">
               <h2 className="text-xl font-bold text-amber-800 mb-3">So funktioniert's</h2>
               <ol className="list-decimal list-inside space-y-2 text-amber-700">
-                <li>Wähle den Münzwert aus der Liste</li>
-                <li>Lege die leere Schale auf die Waage und notiere das Gewicht</li>
-                <li>Fülle die Schale mit Münzen und notiere das Gesamtgewicht</li>
-                <li>Der Rechner berechnet automatisch den Wert deiner Münzen</li>
+                <li>Wähle zwischen Münzen (Standard) und Scheinen (swipe nach links)</li>
+                <li>Bei Münzen: Gib Gesamtgewicht und Schalengewicht (Standard: 34g) ein</li>
+                <li>Bei Scheinen: Wähle den Scheinwert und gib die Anzahl ein</li>
+                <li>Der Rechner berechnet automatisch den Wert</li>
                 <li>Mit "Ergebnis hinzufügen" kannst du mehrere Berechnungen sammeln</li>
                 <li>Lösche Einträge mit dem Papierkorb-Icon</li>
               </ol>
               <div className="mt-4 p-3 bg-amber-50 rounded-lg">
                 <p className="text-sm text-amber-700">
-                  <span className="font-medium">Hinweis:</span> Die Berechnung berücksichtigt das offizielle Gewicht der Euro-Münzen. 
+                  <span className="font-medium">Hinweis:</span> Bei Münzen wird das Gewicht gerundet berechnet. 
                   Abweichungen können durch Abnutzung oder Verschmutzung entstehen.
                 </p>
               </div>
