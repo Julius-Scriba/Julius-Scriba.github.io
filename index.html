@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -233,6 +234,62 @@
         const col4 = 160;
         const lineHeight = 8;
         
+        // Aggregiere alle Einträge nach Typ
+        const aggregatedCoins = {};
+        const aggregatedBanknotes = {};
+        
+        // Initialisiere alle Münzen mit 0
+        coins.forEach(coin => {
+          aggregatedCoins[coin.id] = {
+            label: coin.label,
+            count: 0,
+            totalValue: 0,
+            weight: coin.weight
+          };
+        });
+        
+        // Initialisiere alle Scheine mit 0
+        banknotes.forEach(note => {
+          aggregatedBanknotes[note.id] = {
+            label: note.label,
+            count: 0,
+            totalValue: 0,
+            value: note.value
+          };
+        });
+        
+        // Summiere die Einträge
+        entries.forEach(entry => {
+          // Prüfe, ob es sich um eine Münze handelt
+          const isCoin = coins.some(coin => coin.label === entry.coinLabel);
+          
+          if (isCoin) {
+            const coin = coins.find(coin => coin.label === entry.coinLabel);
+            if (coin) {
+              aggregatedCoins[coin.id].count += entry.numCoins;
+              aggregatedCoins[coin.id].totalValue += entry.totalValue;
+            }
+          } else {
+            const note = banknotes.find(note => note.label === entry.coinLabel);
+            if (note) {
+              aggregatedBanknotes[note.id].count += entry.numCoins;
+              aggregatedBanknotes[note.id].totalValue += entry.totalValue;
+            }
+          }
+        });
+        
+        // Konvertiere in Arrays und sortiere absteigend nach Wert
+        const sortedCoins = Object.values(aggregatedCoins)
+          .sort((a, b) => {
+            // Extrahiere den numerischen Wert aus dem Label
+            const aValue = parseFloat(a.label.replace(/[^\d.,]/g, '').replace(',', '.'));
+            const bValue = parseFloat(b.label.replace(/[^\d.,]/g, '').replace(',', '.'));
+            return bValue - aValue;
+          });
+        
+        const sortedBanknotes = Object.values(aggregatedBanknotes)
+          .sort((a, b) => b.value - a.value);
+        
         // Header with background
         doc.setFillColor(250, 214, 165); // Light amber background
         doc.rect(0, 0, pageWidth, 40, 'F');
@@ -261,8 +318,22 @@
         doc.setTextColor(100, 100, 100);
         doc.text(`Erstellt am: ${dateStr}`, pageWidth - margin, 45, { align: 'right' });
         
-        // Table header
+        // Start position for table
         let yPosition = 55;
+        
+        // Münzen Überschrift
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(124, 77, 26);
+        doc.text('MÜNZEN', pageWidth / 2, yPosition, { align: 'center' });
+        
+        yPosition += 8;
+        doc.setDrawColor(230, 210, 180);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        
+        // Table header for coins
+        yPosition += 10;
         doc.setFillColor(255, 240, 220);
         doc.rect(margin, yPosition - 8, pageWidth - 2 * margin, 10, 'F');
         
@@ -280,12 +351,12 @@
         doc.setLineWidth(0.5);
         doc.line(margin, yPosition, pageWidth - margin, yPosition);
         
-        // Table content
+        // Table content for coins
         yPosition += 12;
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(50, 50, 50);
         
-        entries.forEach(entry => {
+        sortedCoins.forEach(coin => {
           // Check if we need a new page
           if (yPosition > 265) {
             doc.addPage();
@@ -307,25 +378,100 @@
           // Position name
           doc.setFontSize(11);
           doc.setTextColor(50, 50, 50);
-          doc.text(entry.coinLabel, col1, yPosition);
+          doc.text(coin.label, col1, yPosition);
           
           // Quantity (right aligned)
-          const quantity = entry.numCoins.toString();
-          doc.text(quantity, col2, yPosition, { align: 'right' });
+          doc.text(coin.count.toString(), col2, yPosition, { align: 'right' });
           
           // Value per item (right aligned)
-          const valuePerItem = (entry.totalValue / entry.numCoins).toFixed(2);
+          const valuePerItem = (coin.totalValue / (coin.count > 0 ? coin.count : 1)).toFixed(2);
           doc.text(`${valuePerItem} €`, col3, yPosition, { align: 'right' });
           
           // Total value (right aligned)
-          doc.text(`${entry.totalValue.toFixed(2)} €`, col4, yPosition, { align: 'right' });
+          doc.text(`${coin.totalValue.toFixed(2)} €`, col4, yPosition, { align: 'right' });
+          
+          // Move to next line
+          yPosition += lineHeight + 2;
+        });
+        
+        // Add space before banknotes section
+        yPosition += 10;
+        
+        // Scheine Überschrift
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(124, 77, 26);
+        doc.text('SCHEINE', pageWidth / 2, yPosition, { align: 'center' });
+        
+        yPosition += 8;
+        doc.setDrawColor(230, 210, 180);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        
+        // Table header for banknotes
+        yPosition += 10;
+        doc.setFillColor(255, 240, 220);
+        doc.rect(margin, yPosition - 8, pageWidth - 2 * margin, 10, 'F');
+        
+        doc.setFontSize(12);
+        doc.setTextColor(124, 77, 26);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Position', col1, yPosition);
+        doc.text('Anzahl', col2, yPosition, { align: 'right' });
+        doc.text('Wert pro Stück', col3, yPosition, { align: 'right' });
+        doc.text('Gesamtwert', col4, yPosition, { align: 'right' });
+        
+        // Separator line
+        yPosition += 5;
+        doc.setDrawColor(230, 210, 180);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        
+        // Table content for banknotes
+        yPosition += 12;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(50, 50, 50);
+        
+        sortedBanknotes.forEach(note => {
+          // Check if we need a new page
+          if (yPosition > 265) {
+            doc.addPage();
+            yPosition = 30;
+            
+            // Repeat header on new page
+            doc.setFontSize(12);
+            doc.setTextColor(124, 77, 26);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Position', col1, yPosition);
+            doc.text('Anzahl', col2, yPosition, { align: 'right' });
+            doc.text('Wert pro Stück', col3, yPosition, { align: 'right' });
+            doc.text('Gesamtwert', col4, yPosition, { align: 'right' });
+            
+            yPosition += 12;
+            doc.setFont('helvetica', 'normal');
+          }
+          
+          // Position name
+          doc.setFontSize(11);
+          doc.setTextColor(50, 50, 50);
+          doc.text(note.label, col1, yPosition);
+          
+          // Quantity (right aligned)
+          doc.text(note.count.toString(), col2, yPosition, { align: 'right' });
+          
+          // Value per item (right aligned)
+          const valuePerItem = (note.totalValue / (note.count > 0 ? note.count : 1)).toFixed(2);
+          doc.text(`${valuePerItem} €`, col3, yPosition, { align: 'right' });
+          
+          // Total value (right aligned)
+          doc.text(`${note.totalValue.toFixed(2)} €`, col4, yPosition, { align: 'right' });
           
           // Move to next line
           yPosition += lineHeight + 2;
         });
         
         // Add some space before total
-        yPosition += 5;
+        yPosition += 10;
         
         // Total section
         doc.setDrawColor(230, 210, 180);
@@ -335,7 +481,7 @@
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(124, 77, 26);
-        doc.text('Gesamtwert:', col3, yPosition, { align: 'right' });
+        doc.text('GESAMTWERT:', col3, yPosition, { align: 'right' });
         
         doc.setFontSize(16);
         doc.setTextColor(217, 119, 6);
@@ -563,7 +709,7 @@
                 <li>Mit "Ergebnis hinzufügen" kannst du mehrere Berechnungen sammeln</li>
                 <li>Nach dem Hinzufügen wird das Eingabefeld geleert und zur nächst kleineren Einheit gewechselt</li>
                 <li>Lösche Einträge mit dem Papierkorb-Icon</li>
-                <li>Exportiere die Liste als PDF</li>
+                <li>Exportiere die Liste als professionell gestaltete PDF</li>
               </ol>
               <div className="mt-4 p-3 bg-amber-50 rounded-lg">
                 <p className="text-sm text-amber-700">
@@ -581,3 +727,4 @@
   </script>
 </body>
 </html>
+```
