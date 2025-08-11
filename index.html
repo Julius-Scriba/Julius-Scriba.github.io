@@ -305,6 +305,7 @@
         // Date line
         const today = new Date();
         const dateStr = `${today.getDate().toString().padStart(2, '0')}.${(today.getMonth()+1).toString().padStart(2, '0')}.${today.getFullYear()}`;
+        const timeStr = `${today.getHours().toString().padStart(2,'0')}-${today.getMinutes().toString().padStart(2,'0')}-${today.getSeconds().toString().padStart(2,'0')}`;
         doc.setFontSize(12);
         doc.setTextColor(100, 100, 100);
         doc.text(`Erstellt am: ${dateStr}`, pageWidth - margin, 45, { align: 'right' });
